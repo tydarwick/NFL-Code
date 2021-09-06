@@ -1,0 +1,61 @@
+#Package Install
+install.packages("tidyverse")
+install.packages("ggrepel")
+install.packages("ggimage")
+install.packages("nflfastR")
+library(tidyverse)
+library(ggrepel)
+library(ggimage)
+library(nflfastR)
+data<- load_pbp(2018:2020)
+
+#Add column for season (2018,19,20)
+NFL_Data<-
+  data %>%
+  mutate(year=str_sub(game_id, end = 4))
+  
+ #Filter out only regular season and non-passing plays; summarize average air yards, qb_epa, yac yards and cpoe by QBs with more than 200 passing attempts for a team within the three season sample size.
+QB_AirYards<-
+NFL_Data %>%
+  group_by(posteam,id,name)%>%
+  filter(!is.na(air_yards)&!is.na(name)&season_type=="REG")%>%
+  summarise(air_yards=mean(air_yards), qb_epa=mean(qb_epa),  YAC_Yards=mean(yards_after_catch,na.rm=TRUE), cpoe = mean(cpoe, na.rm = T),
+            n_dropbacks = sum(pass), 
+              n_plays=n()) %>%
+  filter(n_dropbacks>200) %>%
+  arrange(desc(YAC_Yards))
+  
+  #Add team logos
+  QB_AirYards<- QB_AirYards %>%
+  left_join(teams_colors_logos, by = c('posteam' = 'team_abbr'))
+
+
+#Plot code
+QB_AirYards %>%
+  ggplot(aes(x = YAC_Yards, y = air_yards)) +
+  #horizontal line with mean EPA
+  geom_hline(yintercept = mean(QB_AirYards$air_yards), color = "red", linetype = "dashed", alpha=0.5) +
+  #vertical line with mean CPOE
+  geom_vline(xintercept =  mean(QB_AirYards$YAC_Yards), color = "red", linetype = "dashed", alpha=0.5) +
+  #add points for the QBs with the right colors
+  #cex controls point size and alpha the transparency (alpha = 1 is normal)
+  geom_point(color = QB_AirYards$team_color, cex=QB_AirYards$n_plays / 350, alpha = .6) +
+  #add names using ggrepel, which tries to make them not overlap
+  geom_text_repel(aes(label=name)) +
+  #add a smooth line fitting cpoe + epa
+  #stat_smooth(geom='line', alpha=0.5, se=FALSE, method='lm')+
+  #titles and caption
+  labs(x = "Yards After Catch(YAC)",
+       y = "Air Yards",
+       title = "Quarterback Air Yards vs YAC 2018-2020",
+       caption = "Data: @nflfastR") +
+  #uses the black and white ggplot theme
+  theme_bw() +
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5, face = "bold")
+  ) +
+  #make ticks look nice
+  #if this doesn't work, `install.packages('scales')`
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
