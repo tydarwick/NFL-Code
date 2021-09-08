@@ -33,17 +33,15 @@ NFL_Data %>%
 #Plot code
 QB_AirYards %>%
   ggplot(aes(x = YAC_Yards, y = air_yards)) +
-  #horizontal line with mean EPA
+  #horizontal line with mean Air Yards
   geom_hline(yintercept = mean(QB_AirYards$air_yards), color = "red", linetype = "dashed", alpha=0.5) +
-  #vertical line with mean CPOE
+  #vertical line with mean Yac Yards
   geom_vline(xintercept =  mean(QB_AirYards$YAC_Yards), color = "red", linetype = "dashed", alpha=0.5) +
   #add points for the QBs with the right colors
   #cex controls point size and alpha the transparency (alpha = 1 is normal)
   geom_point(color = QB_AirYards$team_color, cex=QB_AirYards$n_plays / 350, alpha = .6) +
   #add names using ggrepel, which tries to make them not overlap
   geom_text_repel(aes(label=name)) +
-  #add a smooth line fitting cpoe + epa
-  #stat_smooth(geom='line', alpha=0.5, se=FALSE, method='lm')+
   #titles and caption
   labs(x = "Yards After Catch(YAC)",
        y = "Air Yards",
