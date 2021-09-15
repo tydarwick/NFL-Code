@@ -1,0 +1,33 @@
+QB_NEW_DF <- sportsref_download_11_xls[c(-1,-2)]
+
+set.seed(1)
+
+kmeans <- kmeans(QB_NEW_DF,3)
+# Initialize total within sum of squares error: wss
+wss <- 0
+
+# For 1 to 15 cluster centers
+for (i in 1:15) {
+  km.out <- kmeans(QB_NEW_DF, centers = i, nstart = 20)
+  # Save total within sum of squares to wss variable
+  wss[i] <- km.out$tot.withinss
+}
+
+
+# Plot total within sum of squares vs. number of clusters
+plot(1:15, wss, type="b",
+     xlab = "Number of Clusters", 
+     ylab = "Within groups sum of squares")
+
+# Set k equal to the number of clusters corresponding to the elbow location
+k <- 4
+
+#Final K-Means
+final_kmeans <- kmeans(QB_NEW_DF,k)
+final_kmeans
+QB_Cluster <- cbind(sportsref_download_11_xls, cluster = final_kmeans$cluster)
+
+
+fviz_cluster(final_kmeans,data=sportsref_download_11_xls[-1])
+
+write.csv(QB_Cluster,"QB_Cluster_Data.csv")
