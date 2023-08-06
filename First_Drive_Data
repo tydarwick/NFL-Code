@@ -1,0 +1,67 @@
+## Filter on teams first possesion of a game; filtered on Regular Season only
+all_first_drive<-data %>% 
+  filter(!is.na(posteam),season_type=="REG") %>%
+  group_by(posteam,game_id,week,season_type,posteam_type) %>%
+  summarise(first_drive=min(drive)) %>%
+  arrange(week,game_id)
+
+## Joining back first drive from each team to get first drive data for each game for each team
+## Filter on rush,pass plays and exclude penalties
+## Mutate creates fields for rush/plass explosivness, success, epa
+all_first_drive_data <- data %>%
+  inner_join(all_first_drive,by= c('drive'='first_drive','posteam'='posteam','game_id'='game_id')) %>%
+  filter(rush == 1 | pass == 1,play_type!= 'no_play') %>%
+  select(posteam,defteam,game_id,air_yards,drive,play_id,total_home_score,ep,fixed_drive_result,drive_first_downs,drive_inside20,
+         total_away_score,play_type,epa,desc,drive_ended_with_score, rush, pass, name, passer, rusher, receiver,yards_gained,yards_after_catch,success) %>% 
+  mutate(points_scored=ifelse(fixed_drive_result == "Touchdown",7,ifelse(fixed_drive_result=="Field goal",3,0)),
+         pass_explosives = ifelse(play_type=="pass" & yards_gained>=15,1,0),
+         rush_explosives = ifelse(play_type!="pass" & yards_gained>=10,1,0),
+         pass_epa = ifelse(play_type=="pass",epa,0),
+         rush_epa = ifelse(play_type!="pass",epa,0),
+         pass_success = ifelse(play_type=="pass",success,0),
+         rush_success = ifelse(play_type!="pass",success,0),
+         turnover = ifelse(fixed_drive_result=="Turnover",1,0))%>%
+  group_by(posteam,game_id)%>%
+  summarise(plays=n(),yards_gained=sum(yards_gained)
+            ,pass_play=sum(pass,na.rm=TRUE)
+            ,rush_play=sum(rush,na.rm=TRUE)
+            ,success_plays=sum(success)
+            ,rush_success=sum(rush_success)
+            ,pass_success=sum(pass_success)
+            ,total_epa=sum(epa)
+            ,rush_epa=sum(rush_epa)
+            ,pass_epa=sum(pass_epa)
+            ,passing_explosive_plays = sum(pass_explosives)
+            ,rushing_explosive_plays = sum(rush_explosives)
+            ,scored=max(drive_ended_with_score)
+            ,turnover=max(turnover)
+            ,first_downs=max(drive_first_downs)
+            ,redzone=max(drive_inside20)
+            ,points=max(points_scored))
+
+## Summarizes all data across regular season for each team
+NFL_total<- all_first_drive_data %>%
+  group_by(posteam) %>%
+  summarise(
+    total_plays=sum(plays),
+    plays_drive=round(mean(plays),2),
+    yards_drive=round(mean(yards_gained),2),
+    pass_pct=round(sum(pass_play)/sum(plays),2),
+    rush_pct=round(sum(rush_play)/sum(plays),2),
+    success_rate=round(sum(success_plays)/sum(plays),2),
+    rush_sr=round(sum(rush_success)/sum(rush_play),2),
+    pass_sr=round(sum(pass_success)/sum(pass_play),2),
+    rush_explosiveness=round(sum(rushing_explosive_plays)/sum(rush_play),2),
+    pass_explosiveness=round(sum(passing_explosive_plays)/sum(pass_play),2),
+    total_explosivess=round((sum(rushing_explosive_plays)+sum(passing_explosive_plays))/sum(plays),2),
+    score_pct=round(sum(scored)/n(),2),
+    points_drive=round(mean(points),2),
+    turnover_pct=round(sum(turnover)/n(),2),
+    first_downs = round(mean(first_downs),2),
+    red_zone=round(sum(redzone)/n(),2),
+    epa=round(mean(total_epa),4),
+    median_epa=round(median(total_epa),4),
+    rush_epa=round(mean(rush_epa),4),
+    pass_epa=round(mean(pass_epa),4))
+
+write.csv(Consolidated_Metrics,"NFL_First_drive_Data.csv")
