@@ -1,0 +1,76 @@
+## Scatter Plot Comparing Yards and Points Per Drive
+NFL_total %>%
+  ggplot(aes(x=yards_drive,y=points_drive))+ geom_point() +
+  #horizontal line with mean pass_epa 
+  geom_hline(yintercept = mean(NFL_total$points_drive), color = "red", linetype = "dashed", alpha=0.5) +
+  #vertical line with mean rush_epa
+  geom_vline(xintercept =  mean(NFL_total$yards_drive), color = "red", linetype = "dashed", alpha=0.5) +
+  # adds team names; _repel makes it easier to read labels
+  geom_text_repel(aes(label=posteam)) +
+  # #titles and caption
+  labs(
+       title = "First Drive Yards vs. Points Per Drive",
+       caption = "Data: @nflfastR") +
+  #uses the black and white ggplot theme
+  theme_bw() +
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold.italic")
+  )
+
+## Scatter Plot Comparing Rush and Pass EPA
+NFL_total %>%
+  ggplot(aes(x=pass_epa,y=rush_epa))+ geom_point() +
+  #horizontal line with mean pass_epa 
+  geom_hline(yintercept = mean(NFL_total$pass_epa), color = "red", linetype = "dashed", alpha=0.5) +
+  #vertical line with mean rush_epa
+  geom_vline(xintercept =  mean(NFL_total$rush_epa), color = "red", linetype = "dashed", alpha=0.5) +
+  # adds team names; _repel makes it easier to read labels
+  geom_text_repel(aes(label=posteam)) +
+  #titles and caption
+  labs(title = "First Drive Rush vs. Pass EPA",
+       caption = "Data: @nflfastR") +
+  #uses the black and white ggplot theme
+  theme_bw() +
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold.italic")
+  )
+
+## Scatter Plot Comparing Pass Percentage and Pass SR
+NFL_total %>%
+  ggplot(aes(x=pass_pct,y=pass_sr))+ geom_point() +
+  #horizontal line with mean pass_epa 
+  geom_hline(yintercept = mean(NFL_total$pass_sr), color = "red", linetype = "dashed", alpha=0.5) +
+  #vertical line with mean rush_epa
+  geom_vline(xintercept =  mean(NFL_total$pass_pct), color = "red", linetype = "dashed", alpha=0.5) +
+  # adds team names; _repel makes it easier to read labels
+  geom_text_repel(aes(label=posteam)) +
+  #titles and caption
+  labs(title = "First Drive Pass % vs. Pass Success Rate",
+       caption = "Data: @nflfastR") +
+  #uses the black and white ggplot theme
+  theme_bw() +
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold.italic")
+  )
+
+## Scatter Plot Comparing Rush Percentage and Rush SR
+NFL_total %>%
+  ggplot(aes(x=rush_pct,y=rush_sr))+ geom_point() +
+  #horizontal line with mean pass_epa 
+  geom_hline(yintercept = mean(NFL_total$rush_sr), color = "red", linetype = "dashed", alpha=0.5) +
+  #vertical line with mean rush_epa
+  geom_vline(xintercept =  mean(NFL_total$rush_pct), color = "red", linetype = "dashed", alpha=0.5) +
+  # adds team names; _repel makes it easier to read labels
+  geom_text_repel(aes(label=posteam)) +
+  # #titles and caption
+  labs(title = "First Drive Rush % vs. Rush Success Rate",
+       caption = "Data: @nflfastR") +
+  #uses the black and white ggplot theme
+  theme_bw() +
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold.italic")
+  )
