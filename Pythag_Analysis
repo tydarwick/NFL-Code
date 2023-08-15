@@ -1,0 +1,57 @@
+## Home Teams game results since 2015
+home_2015_on<- new_Df %>%
+  filter(between(season,2015,2022),game_type=='REG') %>%
+  select(season,game_id,week,home_team,home_score,location,result) %>%
+  rename(team=home_team,points_for=home_score)
+
+
+## Away Teams game results since 2015
+away_2015_on<- new_Df %>%
+  filter(between(season,2015,2022),game_type=='REG') %>%
+  select(season,game_id,week,away_team,away_score,location,result) %>%
+  mutate(result=-result,location=case_when(location=='Neutral'~'Neutral',TRUE ~'Away')) %>%
+  rename(team=away_team,points_for=away_score)
+
+#Bringing together both data frames. Updating teams that have moved locations since
+all_Games_2015_on <- bind_rows(home_2015_on,away_2015_on) %>%
+  mutate(points_allowed=points_for-result,
+           team = case_when(
+             team == 'OAK' ~ 'LV',
+             team == 'SD' ~ 'LAC',
+             team == 'STL' ~ 'LA',
+             TRUE ~ team))%>%
+  arrange(week,game_id)
+
+game_summaries<- all_Games_2015_on %>%
+  mutate(win = case_when(result > 0 ~ 1, result < 0 ~ 0, result == 0 ~ 0.5),
+         one_score_game= if_else(abs(result)<=8,1,0),
+         fg_game= if_else(abs(result)<=3,1,0),
+         one_score_win=if_else(win==1 & one_score_game==1,1,0),
+         fg_Win=if_else(win==1 & fg_game==1,1,0),
+         double_digit_win=if_else(result>=10,1,0),
+         double_digit_loss=if_else(result<=-10,1,0)) %>%
+  group_by(team,season) %>%
+  summarise(wins=sum(win),
+            points_for=sum(points_for),
+            points_allowed=sum(points_allowed),
+            point_diff=sum(result),
+            one_score_games=sum(one_score_game),
+            one_score_wins=sum(one_score_win),
+            fg_games=sum(fg_game),
+            fg_wins=sum(fg_Win),
+            double_digit_wins=sum(double_digit_win),
+            double_digit_losses=sum(double_digit_loss)) %>%
+  mutate(scoring_ratio=round(points_for/points_allowed,2),
+         pred_win_pct=round((scoring_ratio^2.37)/((scoring_ratio^2.37)+1),2),
+         pythag_wins=round(pred_win_pct*17,2),
+         pythag_difference=pythag_wins-wins) %>%
+  mutate(prior_year_wins=lag(wins),
+         py_point_diff=lag(point_diff),
+         py_one_score_wins=lag(one_score_wins),
+         py_one_score_games=lag(one_score_games),
+         py_double_digit_wins=lag(double_digit_wins),
+         py_double_digit_losses=lag(double_digit_losses),
+         py_pythag_wins=lag(pythag_wins),
+         py_pythag_difference=lag(pythag_difference)
+         ) %>%
+    ungroup()
