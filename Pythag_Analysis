@@ -55,3 +55,96 @@ game_summaries<- all_Games_2015_on %>%
          py_pythag_difference=lag(pythag_difference)
          ) %>%
     ungroup()
+
+
+## Over-achieving teams
+game_summaries %>%
+  select(team,season,wins, one_score_wins,one_score_games,
+         prior_year_wins,py_pythag_wins,py_pythag_difference,pythag_difference,py_one_score_wins,py_one_score_games) %>%
+  mutate(win_change=wins-prior_year_wins,
+         win_diff=case_when(win_change >0 ~ 'Increase', win_change <0 ~ 'Decrease', TRUE ~ 'No Change')) %>%
+  filter(py_pythag_difference<=-1) %>%
+  # view()
+  group_by(win_diff) %>%
+    summarise(count=n(),
+              avg_Change=mean(win_change),
+              ) %>%
+  mutate(pct_total = (count / sum(count)) * 100)
+    
+  
+## Under-achieving teams
+game_summaries %>%
+  select(team,season,wins,prior_year_wins,py_pythag_wins,py_pythag_difference,py_one_score_wins) %>%
+  mutate(win_change=wins-prior_year_wins,
+         win_diff=case_when(win_change >0 ~ 'Increase', win_change <0 ~ 'Decrease', TRUE ~ 'No Change'))%>%
+  filter(py_pythag_difference>=1) %>%
+  # view()
+  group_by(win_diff) %>%
+  summarise(count=n(),
+            avg_Change=mean(win_change),
+            one_Score=mean(py_one_score_wins))%>%
+  mutate(pct_total = (count / sum(count)) * 100)
+
+#2022 season
+game_summaries %>%
+  filter(season==2022) %>%
+  select(team,season,wins,prior_year_wins,py_pythag_difference,
+         pythag_difference,one_score_games,one_score_wins,fg_games,fg_wins,points_for,points_allowed,point_diff,double_digit_wins,double_digit_losses) %>%
+  arrange(pythag_difference) %>%
+  view()
+  
+  
+## Double-digit wins
+game_summaries %>%
+  group_by(py_double_digit_wins)%>%
+  filter(!is.na(py_double_digit_wins))%>% ## drop 2015 results as no PY
+  summarise(count=n(),
+            py_wins=round(mean(prior_year_wins)),
+            fy_wins=round(mean(wins),2),
+            median(wins)) %>%
+  ggplot(aes(x = py_double_digit_wins, y = fy_wins))+
+  geom_hline(yintercept = mean(game_summaries$wins), color = "red",linetype="dashed") +
+  geom_vline(xintercept =  mean(game_summaries$double_digit_wins), color = "red", linetype = "dashed")+
+  stat_smooth(geom='line', alpha=0.5, se=FALSE, method='lm')+
+  # geom_text_repel(aes(label=round(fy_wins,2))) +
+  theme_bw()+
+  geom_point(cex=mean(game_summaries$wins)/3,alpha=.7)
+
+# # Pythag Difference bottom 10
+game_summaries_logos %>%
+  filter(season == 2022) %>%
+  arrange(pythag_difference) %>%
+  head(10) %>%
+  ggplot(aes(x=reorder(team,-pythag_difference),y=pythag_difference,fill=pythag_difference)) +
+  geom_bar(stat="identity") +
+  scale_fill_gradient(low = "darkred", high = "red") +
+  labs(x = "Team", y = "Pythag_Difference",
+       title = "Overachieving Teams by Pythag. Expectation",
+       caption = "Data: @nflfastR")+
+  geom_nfl_logos(aes(team_abbr = team), alpha = 0.7,width=.05) +
+  # geom_hline(yintercept = mean(game_summaries_logos$pythag_difference), color = "red", linetype = "dashed", alpha=0.5)
+  #uses the black and white ggplot theme
+  theme_bw() +
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 8, hjust = 0.5, face = "bold.italic"))
+    
+    
+# # Pythag Difference top 10
+    game_summaries_logos %>%
+      filter(season == 2022) %>%
+      arrange(-pythag_difference) %>%
+      head(10) %>%
+      ggplot(aes(x=reorder(team,pythag_difference),y=pythag_difference,fill=pythag_difference)) +
+      geom_bar(stat="identity") +
+      scale_fill_gradient(low = "lightgreen", high = "darkgreen") +
+      labs(x = "Team", y = "Pythag_Difference",
+          title = "Underachieving Teams by Pythag. Expectation",
+                caption = "Data: @nflfastR")+
+      geom_nfl_logos(aes(team_abbr = team), alpha = 0.7,width=.05) +
+      # geom_hline(yintercept = mean(game_summaries_logos$pythag_difference), color = "red", linetype = "dashed", alpha=0.5)
+    #uses the black and white ggplot theme
+    theme_bw() +
+      #center title with hjust = 0.5
+      theme(
+        plot.title = element_text(size = 8, hjust = 0.5, face = "bold.italic")) 
