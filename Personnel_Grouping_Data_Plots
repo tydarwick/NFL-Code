@@ -1,0 +1,43 @@
+## YOY Personnel breakouts by Running Plays
+personnel_packages_yoy %>%
+  filter(play_type == "Run") %>%
+  group_by(season) %>%
+  mutate(plays_pct = round(plays / sum(plays),2)) %>%
+  ggplot(aes(fill = package, y = plays_pct, x = season)) +
+  geom_bar(position = "fill", stat = "identity") +
+  geom_text(aes(label = scales::percent(plays_pct,accuracy = 1L)),
+            position = position_fill(vjust = 0.5),
+            size = 2.5) +
+  labs(y = "Percentage", x = "Season", title = "Run Plays by Personnel Package") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme(text = element_text(size = 10))
+
+## YOY Personnel breakouts by Passing Plays
+personnel_packages_yoy %>%
+  filter(play_type == "Pass") %>%
+  group_by(season) %>%
+  mutate(plays_pct = round(plays / sum(plays),2)) %>%
+  ggplot(aes(fill = package, y = plays_pct, x = season)) +
+  geom_bar(position = "fill", stat = "identity") +
+  geom_text(aes(label = scales::percent(plays_pct,accuracy = 1L)),
+            position = position_fill(vjust = 0.5),
+            size = 2.5) +
+  labs(y = "Percentage", x = "Season", title = "Pass Plays by Personnel Package") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme(text = element_text(size = 10))
+
+
+## Team personnel packages
+alignment_data %>%
+group_by(possession_team,package) %>%
+  summarise(plays=sum(play_count)) %>%
+  mutate(plays_pct = round(plays / sum(plays),2)) %>%
+  ggplot(aes(fill = package, y = plays_pct,  x = possession_team)) +
+  geom_bar(position = "fill", stat = "identity") +
+  geom_text(aes(label = scales::percent(plays_pct,accuracy = 1L)),
+            position = position_fill(vjust = 0.5),
+            size = 2.5) +
+  labs(y = "% of Total Plays", x = "Team", title = "2022 Personnel Data by Team") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme(text = element_text(size = 10))
+
