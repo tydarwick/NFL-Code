@@ -1,0 +1,158 @@
+## Loading in data from Participation Function
+participation_data<- load_participation(seasons = TRUE) %>%
+  mutate(season = substr(nflverse_game_id, start = 1, stop = 4),
+         week=substr(nflverse_game_id, start = 6, stop = 7))
+
+##Most common packages year over year 
+personnel_packages_yoy <- participation_data %>%
+  filter(!is.na(offense_personnel),!(offense_personnel==""))%>%
+  mutate(play_type= case_when(is.na(number_of_pass_rushers)~"Run",TRUE ~ "Pass"))%>%
+  group_by(offense_personnel,season,play_type) %>%
+  summarise(count=n()) %>%
+  # mutate(pct_total = (count / sum(count)) * 100) %>%
+  # filter(count>1000) %>%
+  separate(offense_personnel, c("RB", "TE","WR"), ",") %>%
+  mutate(RB=str_trim(RB),WR=str_trim(WR),TE=str_trim(TE)) %>%
+  mutate(package= case_when(RB=="1 RB"& TE=="1 TE" & WR=="3 WR" ~ "11 Personnel", 
+                            RB=="1 RB"& TE=="2 TE" & WR=="2 WR" ~ "12 Personnel",
+                            RB=="2 RB"& TE=="1 TE" & WR=="2 WR" ~ "21 Personnel",
+                            RB=="1 RB"& TE=="3 TE" & WR=="1 WR" ~ "13 Personnel",
+                            RB=="2 RB"& TE=="2 TE" & WR=="1 WR" ~ "22 Personnel",
+                            TRUE ~ "Other")) %>%
+  group_by(season,package,play_type) %>%
+  summarise(plays=sum(count)) %>%
+  view()
+
+##Testing joining participation data to Play by Play Data with 49ers game
+participation_data %>%
+  inner_join(data,by= c('nflverse_game_id'='game_id','play_id'='play_id','possession_team'='posteam')) %>%
+  filter(rush == 1 | pass == 1,play_type!= 'no_play',season_type=="REG",possession_team=="SF") %>%
+  select(play_id,offense_formation,offense_personnel,defenders_in_box,desc,pass
+         ,rush,yards_gained,play_type,possession_team,defteam,yardline_100,epa,cpoe,air_yards,yards_after_catch,down,
+         first_down,third_down_converted,fourth_down_converted,success, rushing_yards,passing_yards,
+         sack,complete_pass,passer_player_name,rusher_player_name,nflverse_game_id,cp) %>%
+  separate(offense_personnel, c("RB", "TE","WR"), ",") %>%
+  mutate(RB=str_trim(RB),WR=str_trim(WR),TE=str_trim(TE)) %>%
+  mutate(package= case_when(RB=="1 RB"& TE=="1 TE" & WR=="3 WR" ~ "11 Personnel", 
+                            RB=="1 RB"& TE=="2 TE" & WR=="2 WR" ~ "12 Personnel",
+                            RB=="2 RB"& TE=="1 TE" & WR=="2 WR" ~ "21 Personnel",
+                            RB=="1 RB"& TE=="3 TE" & WR=="1 WR" ~ "13 Personnel",
+                            RB=="2 RB"& TE=="2 TE" & WR=="1 WR" ~ "22 Personnel",
+                            TRUE ~ "Other"),
+         pass_explosives = ifelse(play_type=="pass" & yards_gained>=15,1,0),
+         rush_explosives = ifelse(play_type!="pass" & yards_gained>=10,1,0),
+         pass_epa = ifelse(play_type=="pass",epa,0),
+         rush_epa = ifelse(play_type!="pass",epa,0),
+         pass_success = ifelse(play_type=="pass",success,0),
+         rush_success = ifelse(play_type!="pass",success,0))%>%
+  filter(nflverse_game_id=="2022_02_SEA_SF")%>%
+  group_by(possession_team,nflverse_game_id) %>%
+  summarise(play_count=n(),
+            first_downs=sum(first_down),
+            total_success=sum(success),
+            rush_success=sum(rush_success),
+            pass_success=sum(pass_success),
+            total_epa=sum(epa),
+            rush_epa=sum(rush_epa),
+            pass_epa=sum(pass_epa),
+            total_yards=sum(yards_gained),
+            rushing_yards=sum(rushing_yards,na.rm=TRUE),
+            passing_yards=sum(passing_yards,na.rm=TRUE),
+            total_explosives=sum(rush_explosives)+sum(pass_explosives),
+            passing_explosive_plays = sum(pass_explosives),
+            rushing_explosive_plays = sum(rush_explosives),
+            total_air_yards = sum(air_yards,na.rm = TRUE),
+            total_yac = sum(yards_after_catch,na.rm = TRUE),
+            total_rushes=sum(rush),
+            total_completions=sum(complete_pass),
+            total_passes=sum(pass)) %>%
+  ungroup() %>%
+  view()
+
+
+
+# Joining Participation Data to PBP ---------------------------------------
+alignment_data<-participation_data %>%
+  inner_join(data,by= c('nflverse_game_id'='game_id','play_id'='play_id','possession_team'='posteam')) %>%
+  filter(rush == 1 | pass == 1,play_type!= 'no_play',season_type=="REG") %>%
+  select(play_id,offense_formation,offense_personnel,defenders_in_box,desc,pass,epa
+         ,rush,yards_gained,play_type,possession_team,defteam,yardline_100,air_yards,yards_after_catch,down,
+         first_down,third_down_converted,fourth_down_converted,success, rushing_yards,passing_yards,
+         sack,complete_pass,passer_player_name,rusher_player_name,nflverse_game_id,cp) %>%
+  separate(offense_personnel, c("RB", "TE","WR"), ",") %>%
+  mutate(RB=str_trim(RB),WR=str_trim(WR),TE=str_trim(TE)) %>%
+  mutate(package= case_when(RB=="1 RB"& TE=="1 TE" & WR=="3 WR" ~ "11 Personnel", 
+                            RB=="1 RB"& TE=="2 TE" & WR=="2 WR" ~ "12 Personnel",
+                            RB=="2 RB"& TE=="1 TE" & WR=="2 WR" ~ "21 Personnel",
+                            RB=="1 RB"& TE=="3 TE" & WR=="1 WR" ~ "13 Personnel",
+                            RB=="2 RB"& TE=="2 TE" & WR=="1 WR" ~ "22 Personnel",
+                            TRUE ~ "Other"),
+         pass_explosives = ifelse(play_type==  "pass" & yards_gained>=15,1,0),
+         rush_explosives = ifelse(play_type!="pass" & yards_gained>=10,1,0),
+         pass_epa = ifelse(play_type=="pass",epa,0),
+         rush_epa = ifelse(play_type!="pass",epa,0),
+         pass_success = ifelse(play_type=="pass",success,0),
+         rush_success = ifelse(play_type!="pass",success,0))%>%
+  group_by(possession_team,package,down) %>%
+  summarise(play_count=n(),
+            first_downs=sum(first_down),
+            total_success=sum(success),
+            rush_success=sum(rush_success),
+            pass_success=sum(pass_success),
+            total_epa=sum(epa),
+            rush_epa=sum(rush_epa),
+            pass_epa=sum(pass_epa),
+            total_yards=sum(yards_gained),
+            rushing_yards=sum(rushing_yards,na.rm=TRUE),
+            passing_yards=sum(passing_yards,na.rm=TRUE),
+            total_explosives=sum(rush_explosives)+sum(pass_explosives),
+            passing_explosive_plays = sum(pass_explosives),
+            rushing_explosive_plays = sum(rush_explosives),
+            total_air_yards = sum(air_yards,na.rm = TRUE),
+            total_yac = sum(yards_after_catch,na.rm = TRUE),
+            total_rushes=sum(rush),
+            total_completions=sum(complete_pass),
+            total_passes=sum(pass)) %>%
+  ungroup() %>%
+  arrange(possession_team)
+
+# Manipulations -----------------------------------------------------------
+
+## team level data
+alignment_data %>%
+  group_by(possession_team,package,down) %>%
+  summarise(total_plays=sum(play_count),
+            pass_rate=sum(total_passes)/sum(play_count),
+            rush_rate= sum(total_rushes)/sum(play_count),
+            pass_sr = sum(pass_success)/sum(total_passes),
+            rush_sr = sum(rush_success)/sum(total_rushes),
+            yards_attempt = sum(passing_yards)/sum(total_passes),
+            yards_rush= sum(rushing_yards)/sum(total_rushes),
+            pass_explosiveness=sum(passing_explosive_plays)/sum(total_passes),
+            rush_explosiveness=sum(rushing_explosive_plays)/sum(total_rushes),
+            comp_pct= sum(total_completions)/sum(total_passes),
+            air_yards = sum(total_air_yards)/sum(total_passes),
+            yac = sum(total_yac)/sum(total_completions),
+            pass_epa = sum(pass_epa)/sum(total_passes),
+            rush_epa = sum(rush_epa)/sum(total_rushes)) %>%
+  mutate(across(where(is.numeric),~round(.,4)))%>% ## across functions targets all numeric columns and rounds to 4 digits
+  view()
+
+##package level data
+alignment_data %>%
+  group_by(package) %>%
+  summarise(pass_rate=sum(total_passes)/sum(play_count),
+            rush_rate= sum(total_rushes)/sum(play_count),
+            pass_sr = sum(pass_success)/sum(total_passes),
+            rush_sr = sum(rush_success)/sum(total_rushes),
+            yards_attempt = sum(passing_yards)/sum(total_passes),
+            yards_rush= sum(rushing_yards)/sum(total_rushes),
+            pass_explosiveness=sum(passing_explosive_plays)/sum(total_passes),
+            rush_explosiveness=sum(rushing_explosive_plays)/sum(total_rushes),
+            comp_pct= sum(total_completions)/sum(total_passes),
+            air_yards = sum(total_air_yards)/sum(total_passes),
+            yac = sum(total_yac)/sum(total_completions),
+            pass_epa = sum(pass_epa)/sum(total_passes),
+            rush_epa = sum(rush_epa)/sum(total_rushes)) %>%
+  mutate(across(where(is.numeric),~round(.,4)))%>% ## across functions targets all numeric columns and rounds to 4 digits
+  view()
