@@ -1,0 +1,64 @@
+##Defensive Stats
+
+defensive_stats<-
+  pbp_new %>%
+  filter(pass == 1|rush==1,play_type!= 'no_play',season_type=="REG") %>% 
+  inner_join(ids,by=c('fantasy_player_id'='gsis_id','posteam'='team')) %>%
+  filter(position %in% c('RB','WR','TE'))%>%
+  group_by(defteam,position) %>%
+  summarise(targets=sum(pass),
+            catches=sum(complete_pass),
+            receiving_yards= sum(receiving_yards,na.rm=TRUE),
+            yards_catch = mean(receiving_yards)/sum(catches),
+            YAC = mean(yards_after_catch,na.rm=TRUE),
+            air_yards=mean(air_yards,na.rm=TRUE),
+            receiving_epa = mean(ifelse(play_type=="pass",epa,0)),
+            pass_explosives = sum(ifelse(play_type=="pass" & yards_gained>=15,1,0)),
+            pass_er= sum(pass_explosives)/sum(catches),
+            receiving_touchdowns= sum(pass_touchdown),
+            rushes=sum(rush),
+            rushing_yards=sum(rushing_yards,na.rm=TRUE),
+            yards_carry=sum(rushing_yards)/sum(rushes),
+            rushing_epa = mean(ifelse(play_type!="pass",epa,0)),
+            rush_explosives = sum(ifelse(play_type!="pass" & yards_gained>=10,1,0)),
+            rush_er=sum(rush_explosives)/sum(rushes),
+            rushing_touchdown=sum(rush_touchdown)) %>%
+  ungroup() %>%
+  arrange(-targets)%>%
+  group_by(defteam) %>%
+  mutate(Target_Share = (targets / sum(targets) * 100)) %>%
+  mutate(across(where(is.numeric),~round(.,2))) %>%
+  ungroup() %>%
+  arrange(-targets)
+
+## Red Zone Stats
+defensive_stats_rz<-
+  pbp_new %>%
+  filter(pass == 1|rush==1,play_type!= 'no_play',season_type=="REG",yardline_100<=20) %>% 
+  inner_join(ids,by=c('fantasy_player_id'='gsis_id','posteam'='team')) %>%
+  filter(position %in% c('RB','WR','TE'))%>%
+  group_by(defteam,position) %>%
+  summarise(targets=sum(pass),
+            catches=sum(complete_pass),
+            receiving_yards= sum(receiving_yards,na.rm=TRUE),
+            yards_catch = mean(receiving_yards)/sum(catches),
+            YAC = mean(yards_after_catch,na.rm=TRUE),
+            air_yards=mean(air_yards,na.rm=TRUE),
+            receiving_epa = mean(ifelse(play_type=="pass",epa,0)),
+            pass_explosives = sum(ifelse(play_type=="pass" & yards_gained>=15,1,0)),
+            pass_er= sum(pass_explosives)/sum(catches),
+            receiving_touchdowns= sum(pass_touchdown),
+            rushes=sum(rush),
+            rushing_yards=sum(rushing_yards,na.rm=TRUE),
+            yards_carry=sum(rushing_yards)/sum(rushes),
+            rushing_epa = mean(ifelse(play_type!="pass",epa,0)),
+            rush_explosives = sum(ifelse(play_type!="pass" & yards_gained>=10,1,0)),
+            rush_er=sum(rush_explosives)/sum(rushes),
+            rushing_touchdown=sum(rush_touchdown)) %>%
+  ungroup() %>%
+  arrange(-targets)%>%
+  group_by(defteam) %>%
+  mutate(Target_Share = (targets / sum(targets) * 100)) %>%
+  mutate(across(where(is.numeric),~round(.,2))) %>%
+  ungroup() %>%
+  arrange(-targets)
