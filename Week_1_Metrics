@@ -1,0 +1,140 @@
+# 1st down metrics --------------------------------------------------------
+pbp_2023 %>%
+  filter(play_type!='no_play',rush==1|pass==1,down==1) %>%
+  group_by(posteam,game_half) %>%
+  summarise(
+            play_count=n(),
+            passes=sum(pass),
+            runs=sum(rush),
+            epa = mean(epa),
+            passing_epa = mean(ifelse(play_type=="pass",epa,0)),
+            rushing_epa = mean(ifelse(play_type!="pass",epa,0)),
+            yards_attempt = sum(passing_yards,na.rm=TRUE)/sum(pass),
+            yards_rush = sum(rushing_yards,na.rm=TRUE)/sum(rush),
+            avg_yards = mean(yards_gained),
+            pass_rate= sum(pass)/n(),
+            sacks=sum(sack),
+            conversion = sum(first_down),
+            conversion_rate = sum(first_down)/n()
+            ) %>%
+  mutate(across(where(is.numeric),~round(.,3))) %>%
+  arrange(-yards_attempt) %>%
+  ggplot(aes(x = avg_yards, y = conversion_rate))+
+  geom_text_repel(aes(label=posteam)) +
+  geom_point(color = qb_metrics_2023$team_color, alpha = .6)+
+  # #titles and caption
+  labs(x = "Yards/Play",
+       y = "Series Conversion Rate",
+       title = "1st Down Yards/Play vs Series Conversion Rate: 2nd Half",
+       caption = "Data: @nflfastR")+
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 12, hjust = 0.5, face = "bold.italic")) 
+# QB Metrics --------------------------------------------------------------
+# qb_metrics_2023<- 
+  pbp_2023 %>%
+  group_by(posteam,id,name)%>%
+  filter(season_type == "REG", !is.na(epa),down==3)%>%
+  summarise(ay_attempt=mean(air_yards,na.rm=TRUE),
+            qb_epa=mean(qb_epa),  
+            YAC_Yards=mean(yards_after_catch,na.rm=TRUE), 
+            cpoe = mean(cpoe, na.rm = T),
+            n_dropbacks = sum(pass),
+            passing_yards=sum(passing_yards,na.rm=TRUE),
+            air_yard_pct = sum(ifelse(complete_pass==1,air_yards,0))/sum(passing_yards,na.rm=TRUE),
+            yac_pct =  sum(ifelse(complete_pass==1,yards_after_catch,0))/sum(passing_yards)) %>%
+  filter(n_dropbacks>5) %>%
+  mutate(across(where(is.numeric),~round(.,3))) %>%
+  left_join(team_colors, by = c('posteam' = 'team_abbr')) %>%
+  ungroup() %>%
+
+qb_metrics_2023 %>%
+  ggplot(aes(x = ay_attempt, y = cpoe)) +
+  #horizontal line with mean CPOE
+  geom_hline(yintercept = mean(qb_metrics_2023$cpoe), color = "red", linetype = "dashed", alpha=0.5) +
+  #vertical line with mean Air_Yards/attemp
+  geom_vline(xintercept =  mean(qb_metrics_2023$ay_attempt), color = "red", linetype = "dashed", alpha=0.5) +
+  #add points for the QBs with the right colors
+  #cex controls point size and alpha the transparency (alpha = 1 is normal)
+  geom_point(color = qb_metrics_2023$team_color, alpha = .6) +
+  #add names using ggrepel, which tries to make them not overlap
+  geom_text_repel(aes(label=name)) +
+  # #titles and caption
+  labs(x = "Air Yards/Attempt",
+       y = "CPOE",
+       title = "Quarterback Air Yards vs CPOE Week 1",
+       caption = "Data: @nflfastR") +
+  #uses the black and white ggplot theme
+  theme_gray() +
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 12, hjust = 0.5, face = "bold.italic")
+  ) +
+  #make ticks look nice
+  #if this doesn't work, `install.packages('scales')`
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
+
+# Receiver metrics --------------------------------------------------------
+# wr_metrics_2023<-
+pbp_2023 %>%
+  filter(pass == 1,play_type!= 'no_play',season_type=="REG",!is.na(receiver_player_name)) %>%
+  group_by(receiver_player_name,posteam) %>%
+  summarise(targets=sum(pass),
+            catches=sum(complete_pass),
+            receiving_yards= sum(receiving_yards,na.rm=TRUE),
+            yards_catch = mean(receiving_yards)/sum(catches),
+            YAC = mean(yards_after_catch,na.rm=TRUE),
+            adot=mean(air_yards,na.rm=TRUE),
+            receiving_epa = mean(ifelse(play_type=="pass",epa,0)),
+            pass_explosives = sum(ifelse(play_type=="pass" & yards_gained>=15,1,0)),
+            pass_er= sum(pass_explosives)/sum(catches),
+            receiving_touchdowns= sum(pass_touchdown)) %>%
+  ungroup() %>%
+  group_by(posteam) %>%
+  mutate(Target_Share = (targets / sum(targets) * 100)) %>%
+  mutate(across(where(is.numeric),~round(.,2))) %>%
+  filter(targets>=5)%>%
+  ungroup() %>%
+  ggplot(aes(x = Target_Share, y = receiving_epa)) +
+  #cex controls point size and alpha the transparency (alpha = 1 is normal)
+  geom_point(alpha = .6) +
+  #add names using ggrepel, which tries to make them not overlap
+  geom_text_repel(aes(label=receiver_player_name))+
+  labs(x = "Target Share",
+       y = "EPA/Target",
+       title = "Target Share vs. EPA/Target: Week 1",
+       caption = "Data: @nflfastR")+
+  #center title with hjust = 0.5
+  theme(
+    plot.title = element_text(size = 12, hjust = 0.5, face = "bold.italic")
+  ) 
+
+
+
+
+# Explosive Rate by Team --------------------------------------------------
+
+##Teams Explosive Rate
+pbp_2023 %>%
+  filter(rush == 1 | pass == 1,play_type!= 'no_play',down<=2) %>%
+  group_by(posteam) %>%
+  summarise(play_count=n(),
+            explosive_rate=sum(explosives)/n(),
+            pass_er=sum(pass_explosives)/sum(pass),
+            rush_er=sum(rush_explosives)/sum(rush)) %>%
+  arrange(-explosive_rate) %>%
+  ggplot(aes(x = pass_er, y = rush_er)) +
+  #cex controls point size and alpha the transparency (alpha = 1 is normal)
+  geom_point(color = qb_metrics_2023$team_color,alpha = .6) +
+  #add names using ggrepel, which tries to make them not overlap
+  geom_text_repel(aes(label=posteam))+
+  # #titles and caption
+  labs(x = "Passing Explosive Rate",
+       y = "Rushing Explosive Rate",
+       title = "Early Down Explosive Rate: Week 1",
+       caption = "Data: @nflfastR")+
+    #center title with hjust = 0.5
+    theme(
+      plot.title = element_text(size = 12, hjust = 0.5, face = "bold.italic")
+    ) 
