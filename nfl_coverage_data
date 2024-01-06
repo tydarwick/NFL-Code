@@ -1,0 +1,124 @@
+##Load Data and filter on pass plays
+pbp_coverage <- load_participation(2023, include_pbp = TRUE)
+pbp_coverage<- pbp_coverage %>% filter(pass==1)
+
+##Identify unique coverage schemes
+unique(pbp_2023$defense_coverage_type)
+
+## Modify value names for coverage types
+pbp_coverage<- pbp_coverage %>%
+ mutate(defense_coverage_type= case_when( 
+        defense_coverage_type == "COVER_0" ~ 'Cover 0',
+        defense_coverage_type == "COVER_1" ~ 'Cover 1',
+        defense_coverage_type == "COVER_2" ~ 'Cover 2',
+        defense_coverage_type == "COVER_3" ~ 'Cover 3',
+        defense_coverage_type == "COVER_4" ~ 'Cover 4',
+        defense_coverage_type == "COVER_6" ~ 'Cover 6',
+        defense_coverage_type == "2_MAN" ~ 'Cover 2 Man',
+        TRUE ~ 'Other'))
+
+##Count and sort by coverage types
+pbp_coverage %>%
+  # filter(qb_scramble==1|sack==1)%>%
+  group_by(defense_coverage_type)%>%
+  tally() %>%
+  arrange(-n)
+
+##Pull coverage rates by team
+def_coverage_rates<-
+  pbp_coverage %>%
+  group_by(defteam,defense_coverage_type)%>%
+  summarise(plays=n()) %>%
+  group_by(defteam) %>%
+  filter(defense_coverage_type!= 'Other') %>%
+  mutate(totplays= sum(plays),
+         rates=plays/totplays) %>%
+  select(-plays,-totplays) %>%
+  group_by(defteam)%>%
+  pivot_wider(names_from = defense_coverage_type,values_from=rates)
+
+##Replace N/A values with 0s
+def_coverage_rates[is.na(def_coverage_rates)]<-0
+
+##coverage rates and stats for each team in coverage
+cov_rates_metrics<-
+pbp_coverage %>%
+group_by(defteam,defense_coverage_type)%>%
+  summarise(plays=n(),
+            epa_play = mean(epa,na.rm=T),
+            successrate = mean(success, na.rm = T),
+            YPP = mean(yards_gained, na.rm = T))%>%
+  filter(defense_coverage_type != 'Other') %>%
+  group_by(defteam)%>%
+  mutate(rate=plays/sum(plays)) %>%
+  left_join(teams_colors_logos |> select(team_abbr, team_wordmark), by = c('defteam' = 'team_abbr')) %>%
+  group_by(defense_coverage_type)%>%
+  mutate(epa_rank=rank(epa_play),
+         play_rank= round(rank(-plays),0))
+
+
+##Creating defensive table
+colts_tbl<-
+cov_rates_metrics %>%
+  ungroup() %>%
+  filter(defteam=='IND') %>%
+  select(team_wordmark,defense_coverage_type,plays,rate,play_rank,epa_play,epa_rank,successrate,YPP)%>%
+  arrange(-plays)%>%
+  gt() %>%
+  gt_img_rows(columns=team_wordmark) %>%
+  fmt_number(columns=c(epa_play,YPP),decimals=2)%>%
+  fmt_percent(columns=c(successrate,rate),decimals=2)%>%
+  opt_row_striping() %>%
+  gt_theme_538() %>%
+  tab_header(title = "Colts defensive coverage breakdown in the 2023 season") %>%
+  cols_label(
+    team_wordmark = "Defense",
+    defense_coverage_type = "Coverage",
+    rate= "Play %",
+    epa_play = "EPA/attempt",
+    successrate = "Success Rate")
+
+gtsave(colts_tbl,"coltstbl.png")
+
+##coverage rates and stats for each team on offense against certain coverages
+offensive_cov_metrics<-
+pbp_coverage %>%
+  group_by(passer_id,passer,posteam,defense_coverage_type)%>%
+  summarise(plays=n(),
+            epa_play = mean(epa,na.rm=T),
+            successrate = mean(success, na.rm = T),
+            YPP = mean(yards_gained, na.rm = T),
+            air_yards=mean(air_yards,na.rm=T))%>%
+  filter(defense_coverage_type != 'Other') %>%
+  mutate(totplays=sum(plays)) %>%
+  filter(totplays>=200)%>%
+  group_by(passer_id,passer)%>%
+  mutate(rate=plays/sum(plays)) %>%
+  left_join(teams_colors_logos |> select(team_abbr, team_wordmark), by = c('posteam' = 'team_abbr')) %>%
+  group_by(defense_coverage_type)%>%
+  mutate(epa_rank=rank(-epa_play),
+         play_rank= round(rank(-plays),0))
+
+##Offensive Table
+cj_table<-
+offensive_cov_metrics %>%
+  ungroup() %>%
+  filter(passer=='C.Stroud') %>%
+  select(team_wordmark,defense_coverage_type,plays,rate,play_rank,epa_play,epa_rank,successrate,YPP)%>%
+  arrange(-plays)%>%
+  gt() %>%
+  gt_img_rows(columns=team_wordmark) %>%
+  fmt_number(columns=c(epa_play,YPP),decimals=2)%>%
+  fmt_percent(columns=c(successrate,rate),decimals=2)%>%
+  opt_row_striping() %>%
+  gt_theme_538() %>%
+  tab_header(title = "CJ Stroud coverage breakdown in the 2023 season") %>%
+  cols_label(
+    team_wordmark = "Offense",
+    defense_coverage_type = "Coverage",
+    rate= "Play %",
+    epa_play = "EPA/attempt",
+    successrate = "Success Rate")
+
+gtsave(cj_table,"CJtbl.png")
+
