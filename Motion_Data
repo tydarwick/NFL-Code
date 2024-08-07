@@ -1,0 +1,143 @@
+##load ftn_charting for motion data
+ftn_charting <-
+ load_ftn_charting(2022:2023) %>%
+  select(-c(ftn_game_id,season,week,ftn_play_id))
+
+##Create DF for 2019-2023 seasons
+pbp_2019_on <- load_pbp(2019:2023) %>%
+  filter(rush == 1 | pass == 1, !is.na(epa)) %>%
+  left_join(ftn_charting,by=c('game_id'='nflverse_game_id','play_id'='nflverse_play_id'))
+
+
+##Motion DFs
+motion_data<-
+  pbp_2019_on%>%
+  left_join(teams_colors_logos |> select(team_abbr, team_wordmark), by = c('posteam' = 'team_abbr'))%>%
+  filter(play_type != 'no_play',season_type=='REG',!is.na(is_motion),season==2023)%>%
+  group_by(posteam,play_type,is_motion,team_wordmark)%>%
+  summarise(play_count=n(),
+            avg_epa = mean(epa)) %>%
+  ungroup() %>%
+  group_by(posteam,play_type)%>%
+  mutate(play_pct_total = (play_count / sum(play_count)),
+         across(where(is.numeric),~round(.,4)))%>%
+  ungroup() %>%
+  pivot_wider(names_from=is_motion,values_from= c(play_count,avg_epa,play_pct_total))%>%
+  group_by(play_type)%>%
+  mutate(epa_no_motion_rank=row_number(-avg_epa_FALSE),
+         epa_motion_rank=row_number(-avg_epa_TRUE)) %>%
+  ungroup()
+
+
+motion_data_early_downs<-
+  pbp_2019_on%>%
+  left_join(teams_colors_logos |> select(team_abbr, team_wordmark), by = c('posteam' = 'team_abbr'))%>%
+  filter(play_type != 'no_play',season_type=='REG',!is.na(is_motion),season==2023,down<=2,qtr<=2)%>%
+  group_by(posteam,play_type,is_motion,team_wordmark)%>%
+  summarise(play_count=n(),
+            avg_epa = mean(epa)) %>%
+  ungroup() %>%
+  group_by(posteam,play_type)%>%
+  mutate(play_pct_total = (play_count / sum(play_count)),
+         across(where(is.numeric),~round(.,4)))%>%
+  ungroup() %>%
+  pivot_wider(names_from=is_motion,values_from= c(play_count,avg_epa,play_pct_total))%>%
+  group_by(play_type)%>%
+  mutate(epa_no_motion_rank=row_number(-avg_epa_FALSE),
+         epa_motion_rank=row_number(-avg_epa_TRUE)) %>%
+  ungroup()
+
+
+
+# Pass Table All Quarters/Downs -------------------------------------------
+motion_data %>%
+  filter(play_type=='pass')%>%
+  select(team_wordmark,avg_epa_FALSE, epa_no_motion_rank,
+         avg_epa_TRUE,epa_motion_rank, play_pct_total_FALSE,play_pct_total_TRUE)%>%
+  arrange(play_pct_total_TRUE)%>%
+  gt() %>%
+  gt_img_rows(columns=team_wordmark) %>%
+  fmt_number(columns=c(avg_epa_FALSE,avg_epa_TRUE),decimals=2)%>%
+  fmt_percent(columns=c(play_pct_total_FALSE,play_pct_total_TRUE),decimals=2)%>%
+  opt_row_striping() %>%
+  tab_header(title = "Pass Offense Splits Motion vs. No Motion") %>%
+  gt_theme_538() %>%
+  cols_label(
+    team_wordmark = "Offense",
+    avg_epa_FALSE= "EPA w/o Motion",
+    epa_no_motion_rank= "EPA Rank w/o Motion",
+    avg_epa_TRUE= "EPA w/ Motion",
+    epa_motion_rank= "EPA Rank w/ Motion",
+    play_pct_total_FALSE= "Play % No Motion",
+    play_pct_total_TRUE= "Play % with Motion")
+
+
+
+# Run Table All Quarters/Downs --------------------------------------------
+motion_data %>%
+  filter(play_type!='pass')%>%
+  select(team_wordmark,avg_epa_FALSE, epa_no_motion_rank,
+         avg_epa_TRUE,epa_motion_rank, play_pct_total_FALSE,play_pct_total_TRUE)%>%
+  arrange(play_pct_total_TRUE)%>%
+  gt() %>%
+  gt_img_rows(columns=team_wordmark) %>%
+  fmt_number(columns=c(avg_epa_FALSE,avg_epa_TRUE),decimals=2)%>%
+  fmt_percent(columns=c(play_pct_total_FALSE,play_pct_total_TRUE),decimals=2)%>%
+  opt_row_striping() %>%
+  tab_header(title = "Run Offense Splits Motion vs. No Motion") %>%
+  gt_theme_538() %>%
+  cols_label(
+    team_wordmark = "Offense",
+    avg_epa_FALSE= "EPA w/o Motion",
+    epa_no_motion_rank= "EPA Rank w/o Motion",
+    avg_epa_TRUE= "EPA w/ Motion",
+    epa_motion_rank= "EPA Rank w/ Motion",
+    play_pct_total_FALSE= "Play % No Motion",
+    play_pct_total_TRUE= "Play % with Motion")
+
+
+
+# Pass Table Early Downs Q. 1-3 -------------------------------------------
+motion_data_early_downs%>%
+  filter(play_type=='pass')%>%
+  select(team_wordmark,avg_epa_FALSE, epa_no_motion_rank,
+         avg_epa_TRUE,epa_motion_rank, play_pct_total_FALSE,play_pct_total_TRUE)%>%
+  arrange(play_pct_total_TRUE)%>%
+  gt() %>%
+  gt_img_rows(columns=team_wordmark) %>%
+  fmt_number(columns=c(avg_epa_FALSE,avg_epa_TRUE),decimals=2)%>%
+  fmt_percent(columns=c(play_pct_total_FALSE,play_pct_total_TRUE),decimals=2)%>%
+  opt_row_striping() %>%
+  tab_header(title = "Pass Offense Splits Motion vs. No Motion Early Downs 1H") %>%
+  gt_theme_538() %>%
+  cols_label(
+    team_wordmark = "Offense",
+    avg_epa_FALSE= "EPA w/o Motion",
+    epa_no_motion_rank= "EPA Rank w/o Motion",
+    avg_epa_TRUE= "EPA w/ Motion",
+    epa_motion_rank= "EPA Rank w/ Motion",
+    play_pct_total_FALSE= "Play % No Motion",
+    play_pct_total_TRUE= "Play % with Motion")
+
+
+# Run Table Early Downs Q. 1-3 --------------------------------------------
+motion_data_early_downs %>%
+  filter(play_type!='pass')%>%
+  select(team_wordmark,avg_epa_FALSE, epa_no_motion_rank,
+         avg_epa_TRUE,epa_motion_rank, play_pct_total_FALSE,play_pct_total_TRUE)%>%
+  arrange(-play_pct_total_TRUE)%>%
+  gt() %>%
+  gt_img_rows(columns=team_wordmark) %>%
+  fmt_number(columns=c(avg_epa_FALSE,avg_epa_TRUE),decimals=2)%>%
+  fmt_percent(columns=c(play_pct_total_FALSE,play_pct_total_TRUE),decimals=2)%>%
+  opt_row_striping() %>%
+  tab_header(title = "Run Offense Splits Motion vs. No Motion") %>%
+  gt_theme_538() %>%
+  cols_label(
+    team_wordmark = "Offense",
+    avg_epa_FALSE= "EPA w/o Motion",
+    epa_no_motion_rank= "EPA Rank w/o Motion",
+    avg_epa_TRUE= "EPA w/ Motion",
+    epa_motion_rank= "EPA Rank w/ Motion",
+    play_pct_total_FALSE= "Play % No Motion",
+    play_pct_total_TRUE= "Play % with Motion")
